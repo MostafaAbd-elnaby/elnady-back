@@ -21,7 +21,7 @@ class LevelFactory extends Factory
     {
         return [
             'name' => 'level',
-            'number' => $this->faker->numberBetween(1, 10),
+            'number' => $this->faker->unique()->numberBetween(1, 10),
             'description' => $this->faker->sentence(),
         ];
     }

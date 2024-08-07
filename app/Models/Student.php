@@ -18,8 +18,8 @@ class Student extends Model
         'email',
         'level_id',
     ];
-
-    protected function fullName(): Attribute
+    protected $appends = ['full_name'];
+    public function fullName(): Attribute
     {
         return Attribute::make(
             get: fn ($value) => $this->first_name . ' ' . $this->last_name
@@ -33,11 +33,11 @@ class Student extends Model
 
     public function courses()
     {
-        return $this->belongsToMany(Course::class)->withPivot('id');
+        return $this->belongsToMany(Course::class, 'course_student', 'student_id', 'course_id')->withPivot('id');
     }
 
     public function grades()
     {
-        return $this->hasMany(Grade::class, 'student_course_id');
+        return $this->hasMany(Grade::class, 'course_student_id');
     }
 }

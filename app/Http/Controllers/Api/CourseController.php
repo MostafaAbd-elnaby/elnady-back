@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
-use App\Http\Requests\StoreCourseRequest;
-use App\Http\Requests\UpdateCourseRequest;
+use App\Models\Student;
+use App\Models\GradeItem;
+use App\Models\CourseStudent;
+use Illuminate\Http\Request;
 
 class CourseController extends Controller
 {
@@ -14,74 +16,61 @@ class CourseController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Course::all());
+        $query = Course::query();
+        if ($request->has('search')) {
+            $query->where('code', 'like', '%' . $request->search . '%')
+                ->orWhere('name', 'like', '%' . $request->search . '%');
+        }
+        $courses = $query->orderBy('created_at', 'desc')->get();
+        return response()->json(['courses' => $courses],200);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \App\Http\Requests\StoreCourseRequest  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(StoreCourseRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Course  $course
-     * @return \Illuminate\Http\Response
-     */
     public function show(Course $course)
     {
-        //
+        $studentsNotInCourse = Student::whereDoesntHave('courses', function ($query) use ($course) {
+            $query->where('course_id', $course->id);
+        })->get();
+        $student = $course->student()->with('grades')->get();
+        $studentGrade = $student->map(function ($student) {
+            return [
+                'student_id' => $student->id,
+                'student_name' => $student->full_name,
+                'student_code' => $student->code,
+                'grades' => $student->grades,
+                'total' => $student->grades->sum('score'),
+            ];
+        });
+        return response()->json(['allStudents' => $studentsNotInCourse, 'data' => $studentGrade, 'course_name' => $course->name],200);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Course  $course
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Course $course)
+    public function getGradeItems()
     {
-        //
+        $gradeItems = GradeItem::all();
+        return response()->json(['gradeItems' => $gradeItems],200);
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Http\Requests\UpdateCourseRequest  $request
-     * @param  \App\Models\Course  $course
-     * @return \Illuminate\Http\Response
-     */
-    public function update(UpdateCourseRequest $request, Course $course)
+    public function detachStudentFromCourse($courseId, $studentId)
     {
-        //
+        $course = Course::findOrFail($courseId);
+        $student = Student::findOrFail($studentId);
+        $item = $student->grades()->delete();
+        $student->courses()->detach($courseId);
+        return response()->json(['message' => 'Student has been removed from course'],200);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Course  $course
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Course $course)
+    public function assignStudentToCourse($studentId, $courseId)
     {
-        //
+        $student = Student::findOrFail($studentId);
+        $course = Course::findOrFail($courseId);
+        if (!$student->courses()->where('course_id', $courseId)->exists()) {
+            $student->courses()->attach($courseId);
+            return response()->json(['message' => 'Student has been added to course'],200);
+        } else {
+            return response()->json(['message' => 'Error'],500);
+        }
     }
+
+
 }

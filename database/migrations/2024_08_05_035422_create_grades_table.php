@@ -15,12 +15,12 @@ return new class extends Migration
     {
         Schema::create('grades', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('course_student_id');
-            $table->unsignedBigInteger('grade_item_id');
+            $table->unsignedBigInteger('course_student_id')->nullable();
+            $table->unsignedBigInteger('grade_item_id')->nullable();
             $table->integer('score');
 
-            $table->foreign('course_student_id')->references('id')->on('course_students');
-            $table->foreign('grade_item_id')->references('id')->on('grade_items');
+            $table->foreign('course_student_id')->references('id')->on('course_student')->onDelete('cascade');
+            $table->foreign('grade_item_id')->references('id')->on('grade_items')->onDelete('cascade');
             $table->timestamps();
         });
     }
